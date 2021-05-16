@@ -8,7 +8,8 @@ var jwt = require('jsonwebtoken');
 var bcrypt = require('bcryptjs');
 var config = require('../config');
 
-router.get('/me', function(req, res) {
+
+  const authenticate = (req, res, next) => {
     var token = req.headers['x-access-token'];
     if (!token) return res.send({ auth: false, message: 'No token provided.' });
     
@@ -16,22 +17,27 @@ router.get('/me', function(req, res) {
       if (err) return res.send({ auth: false, message: 'Failed to authenticate token.' });
       
       User.findById(decoded.id, 
-        { password: 0 }, // projection
+        { password: 0 }, 
         function (err, user) {
           if (err) return res.send("There was a problem finding the user.");
           if (!user) return res.send("No user found.");
           
-          res.send(user);
+          // res.send({user,message:"Authenticated"});
+          next();
       });
     });
-  });
+};
+
+router.get("/me", authenticate, (req,res) => {
+  return res.send({messages:"Authenticated"});
+});
 
 router.post('/register', function(req, res) {
   
     var hashedPassword = bcrypt.hashSync(req.body.password, 8);
     var userEmail=req.body.email;
     User.findOne({email:req.body.email},function(err,result){
-        if(result.email===userEmail) return res.send({message: "User already exists."});
+        // if(result.email===userEmail) return res.send({message: "User already exists."});
 
         User.create({
           name : req.body.name,
@@ -47,7 +53,7 @@ router.post('/register', function(req, res) {
           if (err) return res.send({message: "There was a problem registering the user."})
           
           var token = jwt.sign({ id: user._id }, config.secret, {
-            expiresIn: 300
+            expiresIn: 86400
           });
           res.send({ auth: true, token: token });
         }); 
@@ -66,7 +72,7 @@ router.post('/register', function(req, res) {
       if (!passwordIsValid) return res.send({message:"Invalid email/password comination", auth: false, token: null });
       
       var token = jwt.sign({ id: user._id }, config.secret, {
-        expiresIn: 300
+        expiresIn: 86400
       });
       
       res.send({ auth: true, token: token });
